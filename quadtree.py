@@ -5,6 +5,7 @@ Created on Sun Sep 23 10:19:52 2018
 @author: Proshore
 """
 import numpy as np
+from threading import Thread
 
 class Point:
     def __init__(self, x, y):
@@ -23,7 +24,7 @@ class Rectangle:
         self.h = h
 
     def contains(self, point):
-        return point.x >= self.x and point.x < self.x + self.w and point.y >= self.y and point.y < self.y + self.h
+        return self.x <= point.x < self.x + self.w and self.y <= point.y < self.y + self.h
 
     def intersects(self, rect):
         return abs(self.x - rect.x) < (self.w + rect.w) or abs(self.y - rect.y) < (self.y + rect.y)
@@ -83,8 +84,7 @@ class QuadTree:
 
         if not self.boundary.contains(point):
             #print('False')
-            return
-        
+            return False
        
         if len(self.points) < self.capacity:
             #print('inserted '+str(point.__dict__)+' in '+str(self.boundary.__dict__))
@@ -125,7 +125,29 @@ class QuadTree:
             self.ne.query(range, found)
             self.sw.query(range, found)
             self.se.query(range, found)
-    
+
+    def query_async(self, range, found):
+        if not self.boundary.intersects(range):
+            return
+
+        for p in self.points:
+            if range.contains(p):
+                found.append(p)
+
+        if self.divided:
+            thread0 = Thread(target=self.nw.query_async, args=(range,found,))
+            thread1 = Thread(target=self.ne.query_async, args=(range,found,))
+            thread2 = Thread(target=self.sw.query_async, args=(range,found,))
+            thread3 = Thread(target=self.se.query_async, args=(range,found,))
+            threads = [thread0,thread1,thread2,thread3]
+            for thread in threads:
+                thread.start()
+
+            for thread in threads:
+                thread.join()
+
+
+
 
     def draw(self, plt):
         self.boundary.draw(plt)
